@@ -1,5 +1,15 @@
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient();
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tpb => 
+        tpb.ConfigureResource(resource => resource.AddService("frontend"))
+           .AddAspNetCoreInstrumentation()
+           .AddHttpClientInstrumentation()
+           .AddConsoleExporter());
+
 var app = builder.Build();
 
 app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration,

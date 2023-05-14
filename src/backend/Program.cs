@@ -1,4 +1,13 @@
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tpb => 
+        tpb.ConfigureResource(resource => resource.AddService("backend"))
+           .AddAspNetCoreInstrumentation()
+           .AddHttpClientInstrumentation()
+           .AddConsoleExporter());
 var app = builder.Build();
 var randomAge = new Random();
 
