@@ -8,7 +8,10 @@ builder.Services.AddOpenTelemetry()
         tpb.ConfigureResource(resource => resource.AddService("frontend"))
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
-           .AddConsoleExporter());
+           .AddConsoleExporter()
+           .AddOtlpExporter());
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -19,6 +22,8 @@ app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration,
         var response = await result.Content.ReadFromJsonAsync<BackendResponse>();
         return $"Hi {response!.name}, you're {response!.age} years old";
 });
+
+app.MapHealthChecks("/healthcheck");
 
 app.Run();
 
