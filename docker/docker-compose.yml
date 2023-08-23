@@ -9,7 +9,5 @@ services:
       - "4318:4318"   # OTLP http receiver
   jaeger:
     image: jaegertracing/all-in-one:latest
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
     ports:
       - "16686:16686"
