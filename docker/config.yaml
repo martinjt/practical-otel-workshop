@@ -6,15 +6,9 @@ receivers:
 
 processors:
   batch:
-  filter/healthcheck:
-    spans:
-      exclude:
-        match_type: strict
-        attributes:
-          - Key: http.target
-            Value: /health
 
 exporters:
+  logging:
   otlp:
     endpoint: "jaeger:4317"
     tls:
@@ -23,10 +17,6 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch,filter/healthcheck]
-      exporters: [otlp]
-    metrics:
-      receivers: [otlp]
       processors: [batch]
-      exporters: [otlp]
+      exporters: [otlp,logging]
 
