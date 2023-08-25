@@ -21,7 +21,6 @@ func main() {
 	l := log.New(os.Stdout, "", 0)
 	ctx := context.Background()
 	grpcExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
-	exp := NewSpanLinkExporter()
 
 	if err != nil {
 		log.Fatalf("%s: %v", "failed to create exporter", err)
@@ -29,7 +28,7 @@ func main() {
 
 	appResource, err := resource.New(ctx,
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String("go-frontend"),
+			semconv.ServiceNameKey.String("go-backend"),
 			semconv.ServiceVersionKey.String("1.0.1"),
 			semconv.TelemetrySDKLanguageGo,
 		),
@@ -37,7 +36,6 @@ func main() {
 
 	tp := trace.NewTracerProvider(
 		trace.WithResource(appResource),
-		trace.WithBatcher(exp),
 		trace.WithBatcher(grpcExporter),
 	)
 
@@ -57,8 +55,11 @@ func main() {
 	// Set up http mux and configure endpoint
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		firstname := r.URL.Query().Get("firstname")
+		surname := r.URL.Query().Get("surname")
 		data, _ := json.Marshal(map[string]interface{}{
-			"name": "name", "age": rand.Intn(100),
+			"name": fmt.Sprintf("%s %s", firstname, surname),
+			"age":  rand.Intn(100),
 		})
 		fmt.Fprintf(w, string(data))
 	})
@@ -66,35 +67,6 @@ func main() {
 	// setup automatic instrumentation of mux
 	wrappedHandler := otelhttp.NewHandler(mux, "API")
 
-	log.Println("Listening on http://localhost:5012/")
-	log.Fatal(http.ListenAndServe(":5012", wrappedHandler))
-}
-
-type spanLinkExporter struct {
-	linkUrl string
-}
-
-func (e *spanLinkExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-func NewSpanLinkExporter() *spanLinkExporter {
-	return &spanLinkExporter{
-		linkUrl: "http://localhost:16686/trace/",
-	}
-}
-
-func (e *spanLinkExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
-	if len(spans) == 0 {
-		return nil
-	}
-
-	for _, span := range spans {
-		// if a root span (ie no parent span ID)
-		if !span.Parent().SpanID().IsValid() {
-			fmt.Printf("Trace for %s\nJaeger link: %s%s\n", span.Name(), e.linkUrl, span.SpanContext().TraceID().String())
-		}
-	}
-
-	return nil
+	log.Println("Listening on http://localhost:5013/")
+	log.Fatal(http.ListenAndServe(":5013", wrappedHandler))
 }
