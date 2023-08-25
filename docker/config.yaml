@@ -6,6 +6,10 @@ receivers:
 
 processors:
   batch:
+  filter/healthcheck:
+    traces:
+        span:
+          - 'attributes["http.target"] == "/healthcheck"'
 
 exporters:
   logging:
@@ -17,6 +21,6 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch,filter/healthcheck]
       exporters: [otlp,logging]
 

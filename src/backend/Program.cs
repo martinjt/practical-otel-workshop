@@ -4,7 +4,7 @@ using OpenTelemetry.Trace;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenTelemetry()
     .WithTracing(tpb => 
-        tpb.ConfigureResource(resource => resource.AddService("backend"))
+        tpb.ConfigureResource(resource => resource.AddService("dotnet-backend"))
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
            .AddConsoleExporter()

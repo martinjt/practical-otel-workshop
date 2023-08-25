@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -5,28 +6,24 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient();
 builder.Services.AddOpenTelemetry()
     .WithTracing(tpb => 
-        tpb.ConfigureResource(resource => resource.AddService("frontend"))
-           .AddSource("myapp")
+        tpb.ConfigureResource(resource => resource.AddService("dotnet-frontend"))
+           .AddSource(DiagnosticConfig.Source.Name)
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
            .AddConsoleExporter()
            .AddOtlpExporter());
 
-builder.Services.AddSingleton(sp => {
-    return sp.GetRequiredService<TracerProvider>().GetTracer("myapp");
-});
-
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration, Tracer tracer,
+app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration,
     string firstname, string surname) => {
         
-        // var span = tracer.StartActiveSpan("my internal span");
+        using var span = DiagnosticConfig.Source.StartActivity("frontend");
+        span?.SetTag("firstname", firstname);
+        span?.SetTag("surname", surname);
 
-        // Tracer.CurrentSpan.SetAttribute("firstname", firstname);
-        // return $"Hello {firstname}";
         var backendHostname = configuration["BACKEND_HOSTNAME"];
         var result = await httpClient.GetAsync($"http://{backendHostname}/profile?firstname={firstname}&surname={surname}");
         var response = await result.Content.ReadFromJsonAsync<BackendResponse>();
@@ -38,3 +35,8 @@ app.MapHealthChecks("/healthcheck");
 app.Run();
 
 record BackendResponse(string name, int age);
+
+static class DiagnosticConfig
+{
+    public static ActivitySource Source = new ("myapp");
+}
