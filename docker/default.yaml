@@ -1,0 +1,30 @@
+receivers:
+  {type}/{instance}:
+    {configuration}
+
+processors:
+  {type}/{instance}:
+    {configuration}
+
+exporters:
+  {type}/{instance}:
+    {configuration}
+
+services:
+  pipelines:
+    traces/jaeger:
+      receivers: []
+      processors: [{type}/{instance},...]
+      exporters: [otlp/honeycomb, otlp/jaeger]
+    traces/honeycomb:
+      receivers: []
+      processors: [{type}/{instance},...]
+      exporters: []
+    metrics:
+      receivers: []
+      processors: []
+      exporters: []
+    logs:
+      receivers: []
+      processors: []
+      exporters: []
