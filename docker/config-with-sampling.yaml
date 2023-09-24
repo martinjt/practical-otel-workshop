@@ -1,0 +1,48 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+  filter/healthcheck:
+    traces:
+        span:
+          - 'attributes["http.target"] == "/healthcheck"'
+  redaction/creditcard:
+    allow_all_keys: true
+    blocked_values:
+      - "4[0-9]{12}(?:[0-9]{3})?" ## Visa credit card number
+      - "(5[1-5][0-9]{14})"       ## MasterCard number
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100
+    expected_new_traces_per_sec: 10
+    policies:
+      [
+        {
+          name: sample-by-latency,
+          type: latency,
+          latency: {threshold_ms: 500}
+        },
+        {
+          name: sample-by-probability,
+          type: probabilistic,
+          probabilistic: {sampling_percentage: 10}
+        }
+      ]
+
+exporters:
+  logging:
+  otlp:
+    endpoint: "jaeger:4317"
+    tls:
+        insecure: true
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch,filter/healthcheck,redaction/creditcard]
+      exporters: [otlp,logging]
+
