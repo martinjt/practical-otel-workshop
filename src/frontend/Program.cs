@@ -3,7 +3,11 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks();
+
 builder.Services.AddOpenTelemetry()
     .WithTracing(tpb => 
         tpb.ConfigureResource(resource => resource.AddService("dotnet-frontend"))
@@ -13,7 +17,11 @@ builder.Services.AddOpenTelemetry()
            .AddConsoleExporter()
            .AddOtlpExporter());
 
-builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<AlwaysOnSampler>();
+builder.Services.AddSingleton(sp => 
+    new HealthCheckSampler<AlwaysOnSampler>(10, 
+        sp.GetRequiredService<IHttpContextAccessor>(), 
+        sp.GetRequiredService<AlwaysOnSampler>()));
 
 var app = builder.Build();
 
