@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 10s
+
+storage:
+  tsdb:
+    # A 10min time window is enough because it can easily absorb retries and network delays.
+    out_of_order_time_window: 10m

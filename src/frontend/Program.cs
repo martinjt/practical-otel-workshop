@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -9,13 +10,20 @@ builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks();
 
 builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("dotnet-frontend"))
     .WithTracing(tpb => 
-        tpb.ConfigureResource(resource => resource.AddService("dotnet-frontend"))
+        tpb
            .AddSource(DiagnosticConfig.Source.Name)
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
-           .AddConsoleExporter()
-           .AddOtlpExporter());
+           .AddOtlpExporter())
+    .WithMetrics(mpb =>
+        mpb.AddHttpClientInstrumentation()
+            .AddAspNetCoreInstrumentation()
+            .AddMeter("Microsoft.AspNetCore.Hosting")
+            .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+            .AddOtlpExporter()
+    );
 
 builder.Services.AddSingleton<AlwaysOnSampler>();
 builder.Services.AddSingleton(sp => 
@@ -28,6 +36,8 @@ var app = builder.Build();
 app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration,
     string firstname, string surname) => {
         
+        Activity.Current?.SetTag("firstname", firstname);
+        Activity.Current?.SetTag("surname", surname);
         using var span = DiagnosticConfig.Source.StartActivity("frontend");
         span?.SetTag("firstname", firstname);
         span?.SetTag("surname", surname);

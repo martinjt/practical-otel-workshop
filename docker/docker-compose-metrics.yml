@@ -1,0 +1,21 @@
+version: "3.9"  # optional since v1.27.0
+services: 
+  collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    volumes:
+      - ./config-metrics.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP http receiver
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    command: "--enable-feature=otlp-write-receiver --config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - 9090:9090

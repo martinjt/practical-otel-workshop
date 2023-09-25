@@ -1,14 +1,22 @@
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("dotnet-backend"))
     .WithTracing(tpb => 
-        tpb.ConfigureResource(resource => resource.AddService("dotnet-backend"))
+        tpb
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
-           .AddConsoleExporter()
-           .AddOtlpExporter());
+           .AddOtlpExporter())
+    .WithMetrics(mpb => {
+        mpb.AddAspNetCoreInstrumentation()
+            .AddMeter("Microsoft.AspNetCore.Hosting")
+            .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+            .AddOtlpExporter();
+    });
 
 builder.Services.AddHealthChecks();
 
