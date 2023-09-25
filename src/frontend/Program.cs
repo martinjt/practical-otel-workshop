@@ -33,19 +33,27 @@ builder.Services.AddSingleton(sp =>
 
 var app = builder.Build();
 
-app.MapGet("/", async (HttpClient httpClient, IConfiguration configuration,
+app.MapGet("/", async Task<IResult>(HttpClient httpClient, IConfiguration configuration,
     string firstname, string surname) => {
-        
+
+        if (string.IsNullOrEmpty(firstname) &&
+            string.IsNullOrEmpty(surname))
+        {
+            Activity.Current?.AddEvent(new ActivityEvent("Missing Fields", tags:
+                new ActivityTagsCollection(new KeyValuePair<string, object?>[] { 
+                    new ("firstname", firstname),
+                    new ("surname", surname)})
+                ));
+            Activity.Current?.SetStatus(Status.Error);
+            return TypedResults.BadRequest("Please provide a firstname and surname");
+        }
         Activity.Current?.SetTag("firstname", firstname);
         Activity.Current?.SetTag("surname", surname);
-        using var span = DiagnosticConfig.Source.StartActivity("frontend");
-        span?.SetTag("firstname", firstname);
-        span?.SetTag("surname", surname);
 
         var backendHostname = configuration["BACKEND_HOSTNAME"];
         var result = await httpClient.GetAsync($"http://{backendHostname}/profile?firstname={firstname}&surname={surname}");
         var response = await result.Content.ReadFromJsonAsync<BackendResponse>();
-        return $"Hi {response!.name}, you're {response!.age} years old";
+        return TypedResults.Ok($"Hi {response!.name}, you're {response!.age} years old");
 });
 
 app.MapHealthChecks("/healthcheck");
