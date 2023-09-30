@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -34,24 +35,24 @@ builder.Services.AddSingleton(sp =>
 var app = builder.Build();
 
 app.MapGet("/", async Task<IResult>(HttpClient httpClient, IConfiguration configuration,
-    string firstname, string surname) => {
+    [AsParameters]Person person) => {
 
-        if (string.IsNullOrEmpty(firstname) &&
-            string.IsNullOrEmpty(surname))
+        if (string.IsNullOrEmpty(person.firstname) &&
+            string.IsNullOrEmpty(person.surname))
         {
             Activity.Current?.AddEvent(new ActivityEvent("Missing Fields", tags:
                 new ActivityTagsCollection(new KeyValuePair<string, object?>[] { 
-                    new ("firstname", firstname),
-                    new ("surname", surname)})
+                    new ("firstname", person.firstname),
+                    new ("surname", person.surname)})
                 ));
             Activity.Current?.SetStatus(Status.Error);
             return TypedResults.BadRequest("Please provide a firstname and surname");
         }
-        Activity.Current?.SetTag("firstname", firstname);
-        Activity.Current?.SetTag("surname", surname);
+
+        Activity.Current?.AddPerson(person);
 
         var backendHostname = configuration["BACKEND_HOSTNAME"];
-        var result = await httpClient.GetAsync($"http://{backendHostname}/profile?firstname={firstname}&surname={surname}");
+        var result = await httpClient.GetAsync($"http://{backendHostname}/profile?firstname={person.firstname}&surname={person.surname}");
         var response = await result.Content.ReadFromJsonAsync<BackendResponse>();
         return TypedResults.Ok($"Hi {response!.name}, you're {response!.age} years old");
 });
@@ -65,4 +66,28 @@ record BackendResponse(string name, int age);
 static class DiagnosticConfig
 {
     public static ActivitySource Source = new ("myapp");
+}
+class Person
+{
+    public string firstname { get; set; }
+    public string surname { get; set; }    
+}
+
+static class ActivityExtensions
+{
+    public static void AddPerson(this Activity activity, Person person)
+    {
+        activity.SetTag(DiagnosticNames.PersonFirstname, person.firstname);
+        activity.SetTag(DiagnosticNames.PersonSurname, person.surname);
+    }
+}
+
+static class DiagnosticNames
+{
+    /// <summary>
+    /// The name of the person when the person is the main context of the requests
+    /// </summary>
+    public const string PersonFirstname = "person.firstname";
+    public const string PersonSurname = "person.surname";
+
 }

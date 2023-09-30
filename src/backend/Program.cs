@@ -15,12 +15,14 @@ builder.Services.AddOpenTelemetry()
            .AddHttpClientInstrumentation()
            .AddOtlpExporter())
     .WithMetrics(mpb => {
-        mpb.AddAspNetCoreInstrumentation()
-            .AddMeter(DiagnosticConfig.ServiceName)
-            .AddMeter("Microsoft.AspNetCore.Hosting")
-            .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
-            .AddOtlpExporter();
-    });
+         mpb.AddAspNetCoreInstrumentation()
+            .AddMeter(DiagnosticConfig.Meter.Name)
+            .AddOtlpExporter(options => {
+                options.Endpoint = new Uri("http://localhost:9090/api/v1/otlp/v1/metrics");
+                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+            })
+            .AddConsoleExporter();
+        });
 
 builder.Services.AddHealthChecks();
 
