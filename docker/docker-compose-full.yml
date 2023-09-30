@@ -11,3 +11,21 @@ services:
     image: jaegertracing/all-in-one:latest
     ports:
       - "16686:16686"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    command: "--enable-feature=otlp-write-receiver --config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - 9090:9090
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    ports:
+      - "9000:9000"
+      - "8123:8123"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
