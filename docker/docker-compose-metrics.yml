@@ -7,8 +7,6 @@ services:
     ports:
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"   # OTLP http receiver
-    env:
-      HONEYCOMB_API_KEY: $HONEYCOMB_API_KEY
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:
