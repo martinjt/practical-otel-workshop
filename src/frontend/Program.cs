@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -34,7 +35,8 @@ builder.Services.AddSingleton(sp =>
 
 var app = builder.Build();
 
-app.MapGet("/", async Task<IResult>(HttpClient httpClient, IConfiguration configuration,
+app.MapGet("/", async Task<IResult>(HttpContext context, 
+    HttpClient httpClient, IConfiguration configuration,
     [AsParameters]Person person) => {
 
         if (string.IsNullOrEmpty(person.firstname) &&
@@ -49,6 +51,7 @@ app.MapGet("/", async Task<IResult>(HttpClient httpClient, IConfiguration config
             return TypedResults.BadRequest("Please provide a firstname and surname");
         }
 
+        Baggage.SetBaggage("original_user_agent", context.Request.Headers["User-Agent"].ToString());
         Activity.Current?.AddPerson(person);
 
         var backendHostname = configuration["BACKEND_HOSTNAME"];

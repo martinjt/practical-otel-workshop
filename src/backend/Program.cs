@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -30,6 +31,7 @@ var app = builder.Build();
 var randomAge = new Random();
 
 app.MapGet("/profile", (string firstname, string surname) => {
+    Activity.Current?.SetTag("original_user_agent", Baggage.Current.GetBaggage("original_user_agent"));
     using var span = DiagnosticConfig.Source.StartActivity("Generate Age");
     var age = randomAge.Next(18, 100);
     span?.SetTag("age", age);
