@@ -1,0 +1,90 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+  filter/healthcheck:
+    traces:
+        span:
+          - 'attributes["http.target"] == "/healthcheck"'
+  redaction/creditcard:
+    allow_all_keys: true
+    blocked_values:
+      - "4[0-9]{12}(?:[0-9]{3})?" ## Visa credit card number
+      - "(5[1-5][0-9]{14})"       ## MasterCard number
+  attributes/environment:
+    actions:
+      - key: environment
+        value: development
+        action: upsert
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100
+    expected_new_traces_per_sec: 10
+    policies:
+      [
+        {
+          name: sample-by-latency,
+          type: latency,
+          latency: {threshold_ms: 100}
+        },
+        {
+          name: healthcheck-sampling,
+          type: and,
+          and: {
+            and_sub_policy: 
+            [
+              {
+                name: healthcheck-route,
+                type: string_attribute,
+                string_attribute:
+                  {
+                    key: http.route,
+                    values: [/health],
+                  },
+              },
+              {
+                name: sample-by-probability,
+                type: probabilistic,
+                probabilistic: {sampling_percentage: 10}
+              }
+            ]
+          }
+        },
+      ]
+
+exporters:
+  otlp:
+    endpoint: "aspire-dashboard:4317"
+    tls:
+        insecure: true
+  otlp/honeycomb:
+    endpoint: api.honeycomb.io:443
+    headers:
+      x-honeycomb-team: $HONEYCOMB_API_KEY
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
+    traces:
+      receivers: [otlp]
+      processors: 
+        - batch
+        - tail_sampling
+        - filter/healthcheck
+        - attributes/environment
+      exporters: 
+        - otlp
+        - otlp/honeycomb
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: 
+        - otlp
+        - otlp/honeycomb

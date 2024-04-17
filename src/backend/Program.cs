@@ -1,11 +1,16 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddOpenTelemetry(options => {
+    options.AddOtlpExporter();
+});
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("dotnet-backend"))
@@ -18,10 +23,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(mpb => {
          mpb.AddAspNetCoreInstrumentation()
             .AddMeter(DiagnosticConfig.Meter.Name)
-            .AddOtlpExporter(options => {
-                options.Endpoint = new Uri("http://localhost:9090/api/v1/otlp/v1/metrics");
-                options.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-            })
+            .AddOtlpExporter()
             .AddConsoleExporter();
         });
 

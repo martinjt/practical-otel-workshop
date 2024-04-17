@@ -1,11 +1,16 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using OpenTelemetry.Logs;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddOpenTelemetry(options => {
+    options.AddOtlpExporter();
+});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
@@ -43,9 +48,9 @@ app.MapGet("/", async Task<IResult>(HttpContext context,
             string.IsNullOrEmpty(person.surname))
         {
             Activity.Current?.AddEvent(new ActivityEvent("Missing Fields", tags:
-                new ActivityTagsCollection(new KeyValuePair<string, object?>[] { 
+                new ActivityTagsCollection([ 
                     new ("firstname", person.firstname),
-                    new ("surname", person.surname)})
+                    new ("surname", person.surname)])
                 ));
             Activity.Current?.SetStatus(Status.Error);
             return TypedResults.BadRequest("Please provide a firstname and surname");

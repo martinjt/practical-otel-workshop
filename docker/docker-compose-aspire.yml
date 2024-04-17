@@ -1,0 +1,9 @@
+version: "3.9"  # optional since v1.27.0
+services: 
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/nightly/aspire-dashboard:8.0.0-preview.5
+    env:
+      - DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS=true 
+    ports:
+      - "4317:18889"
+      - "18888:18888"
