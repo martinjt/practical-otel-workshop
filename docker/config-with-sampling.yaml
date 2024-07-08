@@ -2,7 +2,9 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: collector:4317
       http:
+        endpoint: collector:4318
 
 processors:
   batch:
