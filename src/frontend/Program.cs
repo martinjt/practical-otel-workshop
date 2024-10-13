@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -15,6 +16,16 @@ builder.Logging.AddOpenTelemetry(options => {
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks();
+DistributedContextPropagator.Current = DistributedContextPropagator.CreateNoOutputPropagator();
+builder.Services.Remove(new ServiceDescriptor(
+    typeof(DistributedContextPropagator),
+    typeof(DistributedContextPropagator),
+    ServiceLifetime.Singleton));
+builder.Services.Remove(new ServiceDescriptor(
+    typeof(DiagnosticListener),
+    typeof(DiagnosticListener),
+    ServiceLifetime.Singleton));
+
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("dotnet-frontend"))
@@ -23,6 +34,8 @@ builder.Services.AddOpenTelemetry()
            .AddSource(DiagnosticConfig.Source.Name)
            .AddAspNetCoreInstrumentation()
            .AddHttpClientInstrumentation()
+           .AddProcessor(new SimpleActivityExportProcessor(new SpanLinkExporter()))
+           .AddProcessor(new StaticValueProcessor())
            .AddOtlpExporter())
     .WithMetrics(mpb =>
         mpb.AddHttpClientInstrumentation()
@@ -32,6 +45,11 @@ builder.Services.AddOpenTelemetry()
             .AddOtlpExporter()
     );
 
+builder.Services.ConfigureOpenTelemetryTracerProvider((sp, tracerProviderBuilder) =>
+{
+    tracerProviderBuilder.AddProcessor(new HeadersSpanProcessor(sp.GetRequiredService<IHttpContextAccessor>()));
+});
+
 builder.Services.AddSingleton<AlwaysOnSampler>();
 builder.Services.AddSingleton(sp => 
     new HealthCheckSampler<AlwaysOnSampler>(10, 
@@ -40,10 +58,10 @@ builder.Services.AddSingleton(sp =>
 
 var app = builder.Build();
 
-app.MapGet("/", async Task<IResult>(HttpContext context, 
+app.MapGet("/", async Task<IResult>(HttpContext context,
     HttpClient httpClient, IConfiguration configuration,
+    ILogger<Program> logger,
     [AsParameters]Person person) => {
-
         if (string.IsNullOrEmpty(person.firstname) &&
             string.IsNullOrEmpty(person.surname))
         {
@@ -55,6 +73,8 @@ app.MapGet("/", async Task<IResult>(HttpContext context,
             Activity.Current?.SetStatus(Status.Error);
             return TypedResults.BadRequest("Please provide a firstname and surname");
         }
+
+        logger.LogInformation("Requesting profile for {firstname} {surname}", person.firstname, person.surname, "my-value", 42);
 
         Baggage.SetBaggage("original_user_agent", context.Request.Headers["User-Agent"].ToString());
         Activity.Current?.AddPerson(person);
@@ -98,4 +118,50 @@ static class DiagnosticNames
     public const string PersonFirstname = "person.firstname";
     public const string PersonSurname = "person.surname";
 
+}
+
+public class SpanLinkExporter : BaseExporter<Activity>
+{
+    public override ExportResult Export(in Batch<Activity> batch)
+    {
+        foreach (var activity in batch)
+        {
+            if (string.IsNullOrEmpty(activity.ParentId))
+            {
+                Console.WriteLine($"{activity.Tags.First(t => t.Key == "url.path").Value} http://localhost:18888/traces/detail/{activity.TraceId}");
+            }
+        }
+
+        return ExportResult.Success;
+    }
+}
+
+public class HeadersSpanProcessor : BaseProcessor<Activity>
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public HeadersSpanProcessor(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    public override void OnStart(Activity data)
+    {
+        if (_httpContextAccessor.HttpContext == null)
+        {
+            return;
+        }
+        var tenantIdHeader = _httpContextAccessor.HttpContext.Request.Headers["x-tenant-id"];
+
+        var tenantId = tenantIdHeader.Any() ? tenantIdHeader.FirstOrDefault() : "no tenant header";
+        data.SetTag("tenant.id", tenantId);
+    }
+}
+
+public class StaticValueProcessor : BaseProcessor<Activity>
+{
+    public override void OnStart(Activity data)
+    {
+        data.SetTag("static.value", "this is a static value");
+    }
 }
