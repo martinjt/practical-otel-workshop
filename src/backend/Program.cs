@@ -1,31 +1,25 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using OpenTelemetry;
-using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.AddOpenTelemetry(options => {
-    options.AddOtlpExporter();
-});
-
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("dotnet-backend"))
+    .UseOtlpExporter()
     .WithTracing(tpb => 
-        tpb
-           .AddSource(DiagnosticConfig.Source.Name)
+        tpb.AddSource(DiagnosticConfig.Source.Name)
            .AddAspNetCoreInstrumentation()
-           .AddHttpClientInstrumentation()
-           .AddOtlpExporter())
-    .WithMetrics(mpb => {
-         mpb.AddAspNetCoreInstrumentation()
-            .AddMeter(DiagnosticConfig.Meter.Name)
-            .AddOtlpExporter()
-            .AddConsoleExporter();
-        });
+           .AddHttpClientInstrumentation())
+    .WithMetrics(mpb => 
+        mpb.AddAspNetCoreInstrumentation()
+           .AddMeter(DiagnosticConfig.Meter.Name)
+           .AddMeter("Microsoft.AspNetCore.Hosting")
+           .AddMeter("Microsoft.AspNetCore.Server.Kestrel"))
+    .WithLogging();
 
 builder.Services.AddHealthChecks();
 

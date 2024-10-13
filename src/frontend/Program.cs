@@ -1,17 +1,11 @@
 using System.Diagnostics;
-using System.Linq;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Logs;
-using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Logging.AddOpenTelemetry(options => {
-    options.AddOtlpExporter();
-});
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
@@ -28,7 +22,12 @@ builder.Services.Remove(new ServiceDescriptor(
 
 
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("dotnet-frontend"))
+    .ConfigureResource(resource => resource
+        .AddService("dotnet-frontend")
+        .AddHostDetector()
+        .AddProcessDetector()
+        .AddOperatingSystemDetector())
+    .UseOtlpExporter()
     .WithTracing(tpb => 
         tpb
            .AddSource(DiagnosticConfig.Source.Name)
@@ -36,14 +35,14 @@ builder.Services.AddOpenTelemetry()
            .AddHttpClientInstrumentation()
            .AddProcessor(new SimpleActivityExportProcessor(new SpanLinkExporter()))
            .AddProcessor(new StaticValueProcessor())
-           .AddOtlpExporter())
+           .AddConsoleExporter())
     .WithMetrics(mpb =>
         mpb.AddHttpClientInstrumentation()
             .AddAspNetCoreInstrumentation()
             .AddMeter("Microsoft.AspNetCore.Hosting")
             .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
-            .AddOtlpExporter()
-    );
+    )
+    .WithLogging();
 
 builder.Services.ConfigureOpenTelemetryTracerProvider((sp, tracerProviderBuilder) =>
 {
