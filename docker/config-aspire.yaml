@@ -58,7 +58,7 @@ processors:
 
 exporters:
   otlp:
-    endpoint: "aspire-dashboard:4317"
+    endpoint: "aspire-dashboard:18889"
     tls:
         insecure: true
   otlp/honeycomb:
@@ -81,10 +81,8 @@ service:
         - attributes/environment
       exporters: 
         - otlp
-        - otlp/honeycomb
     metrics:
       receivers: [otlp]
       processors: [batch]
       exporters: 
         - otlp
-        - otlp/honeycomb
