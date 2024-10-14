@@ -13,6 +13,8 @@ var source = new ActivitySource("traced_queue");
 var tracerProvider = Sdk.CreateTracerProviderBuilder()
     .ConfigureResource(resource => resource.AddService("dotnet-queue"))
     .AddSource(source.Name)
+    .AddSource("RabbitMQ.Client.Publisher")
+    .AddSource("RabbitMQ.Client.Subscriber")
     .AddOtlpExporter()
     .Build();
 
@@ -20,10 +22,10 @@ Console.WriteLine("Press [enter] to start sending messages.");
 Console.ReadLine();
 
 var factory = new ConnectionFactory { HostName = "localhost" };
-using var connection = factory.CreateConnection();
-using var channel = connection.CreateModel();
+using var connection = await factory.CreateConnectionAsync();
+using var channel = await connection.CreateChannelAsync();
 
-channel.QueueDeclare(queue: QUEUE_NAME,
+await channel.QueueDeclareAsync(queue: QUEUE_NAME,
                      durable: false,
                      exclusive: false,
                      autoDelete: false,
@@ -32,26 +34,28 @@ channel.QueueDeclare(queue: QUEUE_NAME,
 var sendActivity = source.StartActivity("Send Messages");
 for (int i = 1; i < MESSAGES_TO_SEND + 1; i++)
 {
-    var properties = channel.CreateBasicProperties();
-    properties.Headers = new Dictionary<string, object>();
+    var properties = new BasicProperties
+    {
+        Headers = new Dictionary<string, object?>()
+    };
     Propagators.DefaultTextMapPropagator.Inject(
-        new PropagationContext(Activity.Current!.Context, Baggage.Current), 
-        properties.Headers, 
+        new PropagationContext(Activity.Current!.Context, Baggage.Current),
+        properties.Headers,
         (headers, key, value) => headers.Add(new(key, value)));
 
     var message = $"Message {i}";
     var body = Encoding.UTF8.GetBytes(message);
-    channel.BasicPublish(exchange: string.Empty,
-                         routingKey: QUEUE_NAME,
+    await channel.BasicPublishAsync(exchange: string.Empty,
+                         routingKey: QUEUE_NAME, true,
                          basicProperties: properties,
                          body: body);
 }
 sendActivity?.Stop();
 
 
-var consumer = new EventingBasicConsumer(channel);
+var consumer = new AsyncEventingBasicConsumer(channel);
 var received = 0;
-consumer.Received += (model, ea) =>
+consumer.ReceivedAsync += (model, ea) =>
 {
     var propagationContext = Propagators.DefaultTextMapPropagator.Extract(
         new PropagationContext(new ActivityContext(), Baggage.Current),
@@ -64,17 +68,18 @@ consumer.Received += (model, ea) =>
             return [];
         });
 
-    using var receiveActivity = source.StartActivity("Receive Messages", ActivityKind.Consumer, propagationContext.ActivityContext);
-    // using var receiveLinkedActivity = source.StartActivity("Receive Message", ActivityKind.Consumer, null, links:
-    //     [new ActivityLink(propagationContext.ActivityContext)]);
+    //using var receiveActivity = source.StartActivity("Receive Messages", ActivityKind.Consumer, propagationContext.ActivityContext);
+    using var receiveLinkedActivity = source.StartActivity("Receive Message", ActivityKind.Consumer, null, links:
+        [new ActivityLink(propagationContext.ActivityContext)]);
     {
         var body = ea.Body.ToArray();
         var message = Encoding.UTF8.GetString(body);
         Console.WriteLine($"Received {message}");
         received++;
     }
+    return Task.CompletedTask;
 };
-channel.BasicConsume(queue: QUEUE_NAME,
+await channel.BasicConsumeAsync(queue: QUEUE_NAME,
                      autoAck: true,
                      consumer: consumer);
 
