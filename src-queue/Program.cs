@@ -79,7 +79,7 @@ channel.BasicConsume(queue: QUEUE_NAME,
                      consumer: consumer);
 
 var iterations = 0;
-while (received < MESSAGES_TO_SEND || iterations < 10)
+while (received < MESSAGES_TO_SEND && iterations < 10)
 { await Task.Delay(10); iterations++; }
 Console.WriteLine("Press [enter] to exit.");
 Console.ReadLine();
