@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "frontend", "src\frontend\fr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "auto-frontend", "src\auto-frontend\auto-frontend.csproj", "{8B11C83D-B1FF-4D5A-96FE-A710A7C69937}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "src-queue", "src-queue\src-queue.csproj", "{BEABD1E8-5134-4F18-AEB0-435192AB11E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{8B11C83D-B1FF-4D5A-96FE-A710A7C69937}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8B11C83D-B1FF-4D5A-96FE-A710A7C69937}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8B11C83D-B1FF-4D5A-96FE-A710A7C69937}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEABD1E8-5134-4F18-AEB0-435192AB11E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEABD1E8-5134-4F18-AEB0-435192AB11E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEABD1E8-5134-4F18-AEB0-435192AB11E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEABD1E8-5134-4F18-AEB0-435192AB11E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6A295142-CB0B-4233-9478-10E015E62AC4} = {E1545685-3C4C-4742-AA04-58D2901B3FBA}

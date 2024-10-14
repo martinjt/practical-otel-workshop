@@ -16,3 +16,9 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
+
+  rabbit:
+    image: rabbitmq:latest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
